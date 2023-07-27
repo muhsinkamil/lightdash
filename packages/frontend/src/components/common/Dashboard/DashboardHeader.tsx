@@ -32,7 +32,7 @@ import {
     PageTitleContainer,
     SeparatorDot,
 } from '../PageHeader';
-import SpaceInfo from '../PageHeader/SpaceInfo';
+import SpaceAndDashboardInfo from '../PageHeader/SpaceAndDashboardInfo';
 import { UpdatedInfo } from '../PageHeader/UpdatedInfo';
 import ViewInfo from '../PageHeader/ViewInfo';
 import SpaceActionModal, { ActionType } from '../SpaceActionModal';
@@ -161,9 +161,11 @@ const DashboardHeader = ({
                         <>
                             <SeparatorDot icon="dot" size={6} />
 
-                            <SpaceInfo
-                                link={`/projects/${projectUuid}/spaces/${dashboardSpaceUuid}`}
-                                name={dashboardSpaceName}
+                            <SpaceAndDashboardInfo
+                                space={{
+                                    link: `/projects/${projectUuid}/spaces/${dashboardSpaceUuid}`,
+                                    name: dashboardSpaceName,
+                                }}
                             />
                         </>
                     )}
@@ -172,7 +174,6 @@ const DashboardHeader = ({
             {userCanManageDashboard && isEditMode ? (
                 <PageActionsContainer>
                     <AddTileButton onAddTiles={onAddTiles} />
-
                     <Tooltip2
                         position="bottom"
                         content={
@@ -188,7 +189,6 @@ const DashboardHeader = ({
                             onClick={onSaveDashboard}
                         />
                     </Tooltip2>
-
                     <Button
                         text="Cancel"
                         disabled={isSaving}

@@ -16,9 +16,12 @@ import {
     Metric,
 } from '../types/field';
 import { WarehouseClient } from '../types/warehouse';
+
 import { renderFilterRuleSql } from './filtersCompiler';
 
-export const lightdashVariablePattern = /\$\{([a-zA-Z0-9_.]+)\}/g;
+// exclude lightdash prefix from variable pattern
+export const lightdashVariablePattern =
+    /\$\{((?!lightdash|ld\b)[a-zA-Z0-9_.]+)\}/g;
 
 type Reference = {
     refTable: string;
@@ -56,6 +59,7 @@ export type UncompiledExplore = {
     joinedTables: ExploreJoin[];
     tables: Record<string, Table>;
     targetDatabase: SupportedDbtAdapter;
+    sqlWhere?: string;
 };
 
 export class ExploreCompiler {
@@ -176,6 +180,7 @@ export class ExploreCompiler {
         const compiledJoins: CompiledExploreJoin[] = joinedTables.map((j) =>
             this.compileJoin(j, includedTables),
         );
+
         return {
             name,
             label,
@@ -213,8 +218,18 @@ export class ExploreCompiler {
             }),
             {},
         );
+        const compiledSqlWhere = table.sqlWhere
+            ? table.sqlWhere.replace(
+                  lightdashVariablePattern,
+                  (_, p1) =>
+                      this.compileDimensionReference(p1, tables, table.name)
+                          .sql,
+              )
+            : undefined;
+
         return {
             ...table,
+            sqlWhere: compiledSqlWhere,
             dimensions,
             metrics,
         };

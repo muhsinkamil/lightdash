@@ -1,4 +1,5 @@
 import {
+    ApiChartSummaryListResponse,
     CreateDashboard,
     CreateSavedChart,
     Dashboard,
@@ -58,6 +59,8 @@ describe('Lightdash dashboard', () => {
     beforeEach(() => {
         cy.login();
     });
+    let dashboardUuid: string;
+    let chartUuid: string;
     it('Should create dashboard and chart at the same time', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
@@ -70,6 +73,9 @@ describe('Lightdash dashboard', () => {
             const tile = createDashboardResponse.body.results.tiles[0];
 
             expect(tile.properties).to.have.property('savedChartUuid');
+            expect(
+                (tile as DashboardChartTile).properties.belongsToDashboard,
+            ).to.eq(true);
             // confirm chart was created
             cy.request<{ results: SavedChart }>(
                 `${apiUrl}/saved/${
@@ -78,6 +84,14 @@ describe('Lightdash dashboard', () => {
             ).then((chartResponse) => {
                 expect(chartResponse.status).to.eq(200);
                 expect(chartResponse.body.results.name).to.eq(chartMock.name);
+                expect(chartResponse.body.results.dashboardUuid).to.eq(
+                    createDashboardResponse.body.results.uuid,
+                );
+                expect(chartResponse.body.results.spaceUuid).to.eq(
+                    createDashboardResponse.body.results.spaceUuid,
+                );
+                chartUuid = chartResponse.body.results.uuid;
+                dashboardUuid = createDashboardResponse.body.results.uuid;
             });
 
             const updateDashboardMock: UpdateDashboard = {
@@ -132,8 +146,48 @@ describe('Lightdash dashboard', () => {
                     expect(chartResponse.body.results.name).to.eq(
                         chartMock.name,
                     );
+                    expect(chartResponse.body.results.dashboardUuid).to.eq(
+                        createDashboardResponse.body.results.uuid,
+                    );
+                    expect(chartResponse.body.results.spaceUuid).to.eq(
+                        createDashboardResponse.body.results.spaceUuid,
+                    );
                 });
             });
+        });
+    });
+    it('Should update chart that belongs to dashboard', () => {
+        const newDescription = 'updated chart description';
+        cy.request<{ results: SavedChart }>({
+            method: 'PATCH',
+            url: `${apiUrl}/saved/${chartUuid}`,
+            body: {
+                description: newDescription,
+            },
+        }).then((chartResponse) => {
+            expect(chartResponse.status).to.eq(200);
+            expect(chartResponse.body.results.name).to.eq(chartMock.name);
+            expect(chartResponse.body.results.description).to.eq(
+                newDescription,
+            );
+            expect(chartResponse.body.results.dashboardUuid).to.eq(
+                dashboardUuid,
+            );
+            expect(chartResponse.body.results.dashboardName).to.eq(
+                dashboardMock.name,
+            );
+        });
+    });
+    it('Should get chart summaries without charts that belongs to dashboard', () => {
+        cy.request<ApiChartSummaryListResponse>(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts`,
+        ).then((chartResponse) => {
+            expect(chartResponse.status).to.eq(200);
+            const projectChartsUuids = chartResponse.body.results.map(
+                ({ uuid }) => uuid,
+            );
+            expect(projectChartsUuids.length).to.not.eq(0);
+            expect(projectChartsUuids).to.not.include(chartUuid);
         });
     });
 });

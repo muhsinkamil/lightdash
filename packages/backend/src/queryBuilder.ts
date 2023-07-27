@@ -6,6 +6,7 @@ import {
     FieldReferenceError,
     FilterGroup,
     FilterRule,
+    ForbiddenError,
     getDimensions,
     getFields,
     getFilterRulesFromGroup,
@@ -15,6 +16,7 @@ import {
     parseAllReferences,
     renderFilterRuleSql,
     SupportedDbtAdapter,
+    UserAttribute,
     WarehouseClient,
 } from '@lightdash/common';
 
@@ -52,16 +54,56 @@ const getOperatorSql = (filterGroup: FilterGroup | undefined) => {
     return ' AND ';
 };
 
+export const replaceUserAttributes = (
+    sqlFilter: string,
+    userAttributes: UserAttribute[],
+    stringQuoteChar: string = "'",
+    filter: string = 'sql_filter',
+): string => {
+    const userAttributeRegex =
+        /\$\{(?:lightdash|ld)\.(?:attribute|attributes|attr)\.(\w+)\}/g;
+    const sqlAttributes = sqlFilter.match(userAttributeRegex);
+
+    if (sqlAttributes === null || sqlAttributes.length === 0) {
+        return sqlFilter;
+    }
+
+    const sq = sqlAttributes.reduce<string>((acc, sqlAttribute) => {
+        const attribute = sqlAttribute.replace(userAttributeRegex, '$1');
+        const userAttribute = userAttributes.find(
+            (ua) => ua.name === attribute,
+        );
+        if (userAttribute === undefined) {
+            throw new ForbiddenError(
+                `Missing user attribute "${attribute}" on ${filter}: "${sqlFilter}"`,
+            );
+        }
+        if (userAttribute.users.length !== 1) {
+            throw new ForbiddenError(
+                `Invalid or missing user attribute "${attribute}" on ${filter}: "${sqlFilter}"`,
+            );
+        }
+        return acc.replace(
+            sqlAttribute,
+            `${stringQuoteChar}${userAttribute.users[0].value}${stringQuoteChar}`,
+        );
+    }, sqlFilter);
+
+    return sq;
+};
 export type BuildQueryProps = {
     explore: Explore;
     compiledMetricQuery: CompiledMetricQuery;
 
     warehouseClient: WarehouseClient;
+    userAttributes?: UserAttribute[];
 };
+
 export const buildQuery = ({
     explore,
     compiledMetricQuery,
     warehouseClient,
+    userAttributes = [],
 }: BuildQueryProps): { query: string; hasExampleMetric: boolean } => {
     let hasExampleMetric: boolean = false;
     const adapterType: SupportedDbtAdapter = warehouseClient.getAdapterType();
@@ -156,7 +198,13 @@ export const buildQuery = ({
         .map((join) => {
             const joinTable = explore.tables[join.table].sqlTable;
             const alias = join.table;
-            return `LEFT JOIN ${joinTable} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}\n  ON ${join.compiledSqlOn}`;
+            const parsedSqlOn = replaceUserAttributes(
+                join.compiledSqlOn,
+                userAttributes,
+                stringQuoteChar,
+                'sql_on',
+            );
+            return `LEFT JOIN ${joinTable} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}\n  ON ${parsedSqlOn}`;
         })
         .join('\n');
 
@@ -243,11 +291,23 @@ export const buildQuery = ({
         return undefined;
     };
 
+    const baseTableSqlWhere = explore.tables[explore.baseTable].sqlWhere;
+
+    const tableSqlWhere = baseTableSqlWhere
+        ? [
+              replaceUserAttributes(
+                  baseTableSqlWhere,
+                  userAttributes,
+                  stringQuoteChar,
+              ),
+          ]
+        : [];
+
     const nestedFilterSql = getNestedFilterSQLFromGroup(filters.dimensions);
+    const nestedFilterWhere = nestedFilterSql ? [nestedFilterSql] : [];
+    const allSqlFilters = [...tableSqlWhere, ...nestedFilterWhere];
     const sqlWhere =
-        filters.dimensions !== undefined && nestedFilterSql
-            ? `WHERE ${nestedFilterSql}`
-            : '';
+        allSqlFilters.length > 0 ? `WHERE ${allSqlFilters.join(' AND ')}` : '';
 
     const whereMetricFilters = getFilterRulesFromGroup(filters.metrics).map(
         (filter) => {
