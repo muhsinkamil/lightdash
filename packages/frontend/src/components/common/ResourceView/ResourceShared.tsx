@@ -1,7 +1,7 @@
 import { assertUnreachable, ResourceViewSpaceItem } from '@lightdash/common';
-import { Box, Text, Tooltip, useMantineTheme } from '@mantine/core';
+import { Box, Flex, Text, Tooltip, useMantineTheme } from '@mantine/core';
 import { IconLock, IconUser, IconUsers } from '@tabler/icons-react';
-import { FC, useMemo } from 'react';
+import { FC, forwardRef, useMemo } from 'react';
 
 enum ResourceAccess {
     Private = 'private',
@@ -38,21 +38,24 @@ interface AccessInfoProps {
     item: ResourceViewSpaceItem;
 }
 
-const AccessInfo: FC<AccessInfoProps> = ({ item }) => {
+const AccessInfo: FC<AccessInfoProps> = forwardRef<
+    HTMLDivElement,
+    AccessInfoProps
+>(({ item }, ref) => {
     const { Icon, status } = AccessInfoData[getResourceAccessType(item)];
 
     const theme = useMantineTheme();
 
     return (
-        <>
+        <Flex ref={ref}>
             <Icon color={theme.colors.gray[6]} size={14} />
 
             <Text size={14} color="gray.6" fz="xs" component="span" ml={5}>
                 {status}
             </Text>
-        </>
+        </Flex>
     );
-};
+});
 
 interface ResourceSharedProps {
     item: ResourceViewSpaceItem;
@@ -81,15 +84,7 @@ export const ResourceShared = ({ item }: ResourceSharedProps) => {
 
     return (
         <Box>
-            <Tooltip
-                label={
-                    <Text lineClamp={1} fz="xs" fw={600} color="white">
-                        {tooltipText}
-                    </Text>
-                }
-                position="top"
-                withArrow
-            >
+            <Tooltip label={tooltipText} position="top" withArrow>
                 <AccessInfo item={item} />
             </Tooltip>
         </Box>

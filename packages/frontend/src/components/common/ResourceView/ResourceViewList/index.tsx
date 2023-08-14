@@ -346,7 +346,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                 },
                 enableSorting: false,
                 meta: {
-                    style: { width: '40%' },
+                    style: { width: '10%' },
                 },
             },
             {
