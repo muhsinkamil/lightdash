@@ -12,9 +12,7 @@ import { useParams } from 'react-router-dom';
 import LoadingState from '../components/common/LoadingState';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
-import ResourceView, {
-    ResourceViewType,
-} from '../components/common/ResourceView';
+import ResourceView from '../components/common/ResourceView';
 import SpaceActionModal, {
     ActionType,
 } from '../components/common/SpaceActionModal';
@@ -100,7 +98,6 @@ const Spaces: FC = () => {
                     pinnedListUuid={project.data?.pinnedListUuid ?? ''}
                 >
                     <ResourceView
-                        view={ResourceViewType.GRID}
                         items={wrapResourceView(
                             spaces.map(spaceToResourceViewItem),
                             ResourceViewItemType.SPACE,
@@ -129,6 +126,12 @@ const Spaces: FC = () => {
                                   ]
                                 : []
                         }
+                        listProps={{
+                            defaultColumnVisibility: {
+                                space: false,
+                                updatedAt: false,
+                            },
+                        }}
                         headerProps={
                             !userCanManageProject
                                 ? {

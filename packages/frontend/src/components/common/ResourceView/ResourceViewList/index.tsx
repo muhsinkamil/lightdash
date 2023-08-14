@@ -18,6 +18,7 @@ import { useSpaceSummaries } from '../../../../hooks/useSpaces';
 import { useValidationUserAbility } from '../../../../hooks/validation/useValidation';
 import { ResourceIcon, ResourceIndicator } from '../../ResourceIcon';
 import { ResourceInfoPopup } from '../../ResourceInfoPopup/ResourceInfoPopup';
+import { ResourceShared } from '../ResourceShared';
 import {
     getResourceTypeName,
     getResourceUrl,
@@ -32,7 +33,7 @@ export enum SortDirection {
     DESC = 'desc',
 }
 
-type ColumnName = 'name' | 'space' | 'updatedAt' | 'actions';
+type ColumnName = 'name' | 'space' | 'updatedAt' | 'actions' | 'sharing';
 
 type ColumnVisibilityMap = Map<ColumnName, boolean>;
 
@@ -255,7 +256,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                     style: {
                         width:
                             columnVisibility.get('space') === false
-                                ? '80%'
+                                ? '70%'
                                 : '65%',
                     },
                 },
@@ -334,6 +335,18 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                 },
                 meta: {
                     style: { width: '20%' },
+                },
+            },
+            {
+                id: 'sharing',
+                label: 'Sharing',
+                cell: (item: ResourceViewItem) => {
+                    if (!isResourceViewSpaceItem(item)) return null;
+                    return <ResourceShared item={item} />;
+                },
+                enableSorting: false,
+                meta: {
+                    style: { width: '40%' },
                 },
             },
             {
